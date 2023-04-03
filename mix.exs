@@ -26,7 +26,7 @@ defmodule FunServer.MixProject do
       authors: @authors,
       formatters: ["html"],
       source_url: @source_url,
-      source_ref: @version,
+      source_ref: "v#{@version}",
       extras: extras()
     ]
   end
