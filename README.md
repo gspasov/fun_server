@@ -8,7 +8,7 @@ Add :fun_server as a dependency to your project's mix.exs:
 ```elixir
 defp deps do
   [
-    {:fun_server, "~> 1.0"}
+    {:fun_server, "~> 0.1.0"}
   ]
 end
 ```
