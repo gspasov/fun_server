@@ -1,5 +1,10 @@
 # FunServer
 
+[![hex.pm version](https://img.shields.io/hexpm/v/fun_server.svg?style=flat)](https://hex.pm/packages/fun_server)
+[![Hex Docs](https://img.shields.io/badge/hex-docs-lightgreen.svg?style=flat)](https://hexdocs.pm/fun_server/)
+[![Total Download](https://img.shields.io/hexpm/dt/fun_server.svg?style=flat)](https://hex.pm/packages/fun_server)
+[![License](https://img.shields.io/hexpm/l/fun_server.svg?style=flat)](https://github.com/gspasov/fun_server/blob/main/LICENSE)
+
 FunServer is a way of writing `GenServer` using functions instead of callbacks.
 
 ## Installation
