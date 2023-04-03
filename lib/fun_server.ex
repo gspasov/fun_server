@@ -63,22 +63,84 @@ defmodule FunServer do
     - `format_status/2`
   """
 
+  @type reply :: term()
+  @type state :: term()
+  @type new_state :: term()
+  @type reason :: any()
+
+  @type init_handler ::
+          (() -> {:ok, state()}
+                 | {:ok, state(), timeout() | :hibernate | {:continue, async_func_handler()}}
+                 | :ignore
+                 | {:stop, reason()})
+
+  @type sync_handler_response ::
+          {:reply, reply(), new_state()}
+          | {:reply, reply(), new_state(),
+             timeout() | :hibernate | {:continue, async_func_handler()}}
+          | {:noreply, new_state()}
+          | {:noreply, new_state(), timeout() | :hibernate | {:continue, async_func_handler()}}
+          | {:stop, reason(), reply(), new_state()}
+          | {:stop, reason(), new_state()}
+
+  @type sync_func_handler ::
+          (from :: GenServer.from(), state() -> sync_handler_response())
+
+  @type async_handler_response ::
+          {:noreply, new_state()}
+          | {:noreply, new_state(), timeout() | :hibernate | {:continue, async_func_handler()}}
+          | {:stop, reason(), new_state()}
+
+  @type async_func_handler :: mfa() | (state() -> async_handler_response())
+
+  @type sync_handler :: mfa() | sync_func_handler()
+
+  @type async_handler :: mfa() | async_func_handler()
+
   @doc false
   defmacro __using__(opts) do
     quote do
       use GenServer, unquote(opts)
 
       @impl true
-      def init(f), do: f.()
+      def init({m, f, a}) when is_atom(m) and is_atom(f) and is_list(a) do
+        apply(m, f, a)
+      end
 
       @impl true
-      def handle_continue(f, state), do: f.(state)
+      def init(f) when is_function(f) do
+        f.()
+      end
 
       @impl true
-      def handle_call(f, from, state), do: f.(from, state)
+      def handle_continue({m, f, a}, state) when is_atom(m) and is_atom(f) and is_list(a) do
+        apply(m, f, a).(state)
+      end
 
       @impl true
-      def handle_cast(f, state), do: f.(state)
+      def handle_continue(f, state) when is_function(f) do
+        f.(state)
+      end
+
+      @impl true
+      def handle_call({m, f, a}, from, state) when is_atom(m) and is_atom(f) and is_list(a) do
+        apply(m, f, a).(from, state)
+      end
+
+      @impl true
+      def handle_call(f, from, state) when is_function(f) do
+        f.(from, state)
+      end
+
+      @impl true
+      def handle_cast({m, f, a}, state) when is_atom(m) and is_atom(f) and is_list(a) do
+        apply(m, f, a).(state)
+      end
+
+      @impl true
+      def handle_cast(f, state) when is_function(f) do
+        f.(state)
+      end
     end
   end
 
@@ -87,22 +149,16 @@ defmodule FunServer do
 
   _For more information please refer to `GenServer.start/3`_
   """
-  @spec start(module :: atom(), init_handler, options :: GenServer.options()) ::
+  @spec start(module :: atom(), init_handler(), options :: GenServer.options()) ::
           {:ok, pid()} | {:error, any()} | :ignore
-        when init_handler:
-               (() -> {:ok, state :: term()}
-                      | {:ok, state :: term(),
-                         timeout() | :hibernate | {:continue, continue_handler}}
-                      | :ignore
-                      | {:stop, reason :: any()}),
-             continue_handler:
-               (state :: term() ->
-                  {:noreply, new_state :: term()}
-                  | {:noreply, new_state :: term(),
-                     timeout() | :hibernate | {:continue, continue_handler}}
-                  | {:stop, reason :: any(), new_state :: term()})
-  def start(module, init_handler, options \\ []) do
-    GenServer.start(module, init_handler, options)
+  def start(module, init_handler, options \\ [])
+
+  def start(module, {m, f, a} = handler, options) when is_atom(m) and is_atom(f) and is_list(a) do
+    GenServer.start(module, handler, options)
+  end
+
+  def start(module, handler, options) when is_function(handler) do
+    GenServer.start(module, handler, options)
   end
 
   @doc """
@@ -110,20 +166,8 @@ defmodule FunServer do
 
   _For more information please refer to `GenServer.start_link/3`_
   """
-  @spec start_link(module :: atom(), init_handler, options :: GenServer.options()) ::
+  @spec start_link(module :: atom(), init_handler(), options :: GenServer.options()) ::
           {:ok, pid()} | {:error, any()} | :ignore
-        when init_handler:
-               (() -> {:ok, state :: term()}
-                      | {:ok, state :: term(),
-                         timeout() | :hibernate | {:continue, continue_handler}}
-                      | :ignore
-                      | {:stop, reason :: any()}),
-             continue_handler:
-               (state :: term() ->
-                  {:noreply, new_state :: term()}
-                  | {:noreply, new_state :: term(),
-                     timeout() | :hibernate | {:continue, continue_handler}}
-                  | {:stop, reason :: any(), new_state :: term()})
   def start_link(module, init_handler, options \\ []) do
     GenServer.start_link(module, init_handler, options)
   end
@@ -183,23 +227,17 @@ defmodule FunServer do
   _For additional information please refer to `GenServer.call/3`_
   """
   @spec sync(
-          handler :: (from :: GenServer.from(), state :: term() -> handler_response),
+          handler :: sync_handler(),
           server :: GenServer.server(),
           timeout :: timeout()
         ) :: term()
-        when handler_response:
-               {:reply, reply, new_state}
-               | {:reply, reply, new_state,
-                  timeout() | :hibernate | {:continue, continue_arg :: term()}}
-               | {:noreply, new_state}
-               | {:noreply, new_state,
-                  timeout() | :hibernate | {:continue, continue_arg :: term()}}
-               | {:stop, reason, reply, new_state}
-               | {:stop, reason, new_state},
-             reply: term(),
-             new_state: term(),
-             reason: term()
-  def sync(handler, server, timeout \\ 5_000) do
+  def sync(handler, server, timeout \\ 5_000)
+
+  def sync({m, f, a} = handler, server, timeout) when is_atom(m) and is_atom(f) and is_list(a) do
+    GenServer.call(server, handler, timeout)
+  end
+
+  def sync(handler, server, timeout) when is_function(handler) do
     GenServer.call(server, handler, timeout)
   end
 
@@ -211,17 +249,12 @@ defmodule FunServer do
 
   _For additional information please refer to `GenServer.cast/2`_
   """
-  @spec async(
-          handler :: (state :: term() -> handler_response),
-          server :: GenServer.server()
-        ) :: term()
-        when handler_response:
-               {:noreply, new_state}
-               | {:noreply, new_state,
-                  timeout() | :hibernate | {:continue, continue_arg :: term()}}
-               | {:stop, reason :: term(), new_state},
-             new_state: term()
-  def async(handler, server) do
+  @spec async(handler :: async_handler(), server :: GenServer.server()) :: term()
+  def async({m, f, a} = handler, server) when is_atom(m) and is_atom(f) and is_list(a) do
+    GenServer.cast(server, handler)
+  end
+
+  def async(handler, server) when is_function(handler) do
     GenServer.cast(server, handler)
   end
 end
