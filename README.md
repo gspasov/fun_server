@@ -3,7 +3,7 @@
 FunServer is a way of writing `GenServer` using functions instead of callbacks.
 
 ## Installation
-Add :fun_server as a dependency to your project's mix.exs:
+Add `:fun_server` as a dependency to your project's mix.exs:
 
 ```elixir
 defp deps do
