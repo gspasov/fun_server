@@ -3,6 +3,7 @@ defmodule FunServer.MixProject do
 
   @version "0.1.0"
   @source_url "https://github.com/gspasov/fun_server"
+  @authors ["Georgi Spasov"]
 
   def project do
     [
@@ -21,9 +22,11 @@ defmodule FunServer.MixProject do
 
   defp docs do
     [
-      source_ref: "v#{@version}",
-      main: "overview",
+      main: "readme",
+      authors: @authors,
       formatters: ["html"],
+      source_url: @source_url,
+      source_ref: @version,
       extras: extras()
     ]
   end
@@ -37,13 +40,7 @@ defmodule FunServer.MixProject do
 
   defp package do
     [
-      files: [
-        "lib",
-        "LICENSE",
-        "mix.exs",
-        "README.md"
-      ],
-      maintainers: ["Georgi Spasov"],
+      maintainers: @authors,
       licenses: ["MIT"],
       links: %{
         "GitHub" => @source_url
