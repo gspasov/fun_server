@@ -7,6 +7,65 @@
 
 FunServer is a way of writing `GenServer` using functions instead of callbacks.
 
+Writing `GenServer` usually ends up with having an "API" section and "callbacks" section, making you go back and forth between these two sections when adding new functionality. `FunServer` allows you to write both in the same place. This make you stop worrying about where to place your callback and just go about your functionality.
+
+Simple and straight to the point.
+
+`FunServer` allows you to pass functions for:
+  - `init/1`
+  - `handle_call/3`
+  - `handle_cast/2`
+  - `handle_continue/2`
+
+The rest of the `GenServer` callbacks can be handled just as before using callbacks:
+  - `handle_info/2`
+  - `terminate/2`
+  - `format_status/2`
+  - `code_change/3`
+
+
+## Usage
+
+```elixir
+defmodule Server do
+  use FunServer
+
+  require Logger
+
+  def start_link(_args) do
+    FunServer.start_link(__MODULE__, fn -> {:ok, []} end, name: __MODULE__)
+  end
+
+  def state() do 
+    FunServer.sync(__MODULE__, fn _from, state -> {:reply, state, state} end)
+  end
+
+  def push(value) do
+    FunServer.async(__MODULE__, fn state ->
+      {:noreply, [value | state]}
+    end)
+  end
+
+  def push_twice(value) do
+    FunServer.async(__MODULE__, fn state ->
+      {:noreply, [value | state], {:continue, fn state -> {:noreply, [value | state]} end}}
+    end)
+  end
+
+  def pop(value) do
+    FunServer.sync(__MODULE__, fn _from, [value | new_state] ->
+      {:noreply, value, new_state}
+    end)
+  end
+
+  @impl true
+  def handle_info(message, state) do
+    Logger.warn("Got an unexpected message: #{inspect(message)}")
+    {:noreply, state}
+  end
+end
+```
+
 ## Installation
 Add `:fun_server` as a dependency to your project's mix.exs:
 
@@ -18,42 +77,3 @@ defp deps do
 end
 ```
 
-## Usage
-
-```elixir
-defmodule Server do
-  use FunServer
-
-  def start_link(_args) do
-    FunServer.start_link(__MODULE__, fn -> {:ok, []} end, name: __MODULE__)
-  end
-
-  def state() do 
-    FunServer.sync(fn _from, state -> {:reply, state, state} end, __MODULE__)
-  end
-
-  def push(value) do
-    value
-    |> handle_push()
-    |> FunServer.async(__MODULE__)
-  end
-
-  def pop(value) do
-    value
-    |> handle_pop()
-    |> FunServer.sync(__MODULE__)
-  end
-
-  defp handle_push(value) do
-    fn state ->
-      {:noreply, [value | state]}
-    end
-  end
-
-  defp handle_pop(value) do
-    fn _from, [value | new_state] ->
-      {:noreply, value, new_state}
-    end
-  end
-end
-```
