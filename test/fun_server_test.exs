@@ -24,44 +24,34 @@ defmodule FunServerTest do
       end
 
       def push(server, elem) do
-        FunServer.async(fn state -> {:noreply, [elem | state]} end, server)
+        FunServer.async(server, fn state -> {:noreply, [elem | state]} end)
       end
 
       def push_mfa_sync(server, elem) do
-        FunServer.sync({Inner, :push_sync, [elem]}, server)
+        FunServer.sync(server, {Inner, :push_sync, [elem]})
       end
 
       def push_mfa_async(server, elem) do
-        FunServer.async({Inner, :push_async, [elem]}, server)
+        FunServer.async(server, {Inner, :push_async, [elem]})
       end
 
       def push_twice(server, elem) do
-        FunServer.async(
-          fn state ->
-            {:noreply, [elem | state], {:continue, fn state -> {:noreply, [elem | state]} end}}
-          end,
-          server
-        )
+        FunServer.async(server, fn state ->
+          {:noreply, [elem | state], {:continue, fn state -> {:noreply, [elem | state]} end}}
+        end)
       end
 
       def push_twice_sync(server, elem) do
-        FunServer.sync(
-          fn _from, state ->
-            {:reply, elem, [elem | state],
-             {:continue, fn state -> {:noreply, [elem | state]} end}}
-          end,
-          server
-        )
+        FunServer.sync(server, fn _from, state ->
+          {:reply, elem, [elem | state], {:continue, fn state -> {:noreply, [elem | state]} end}}
+        end)
       end
 
       def pop(server) do
-        FunServer.sync(
-          fn
-            _from, [elem | new_state] -> {:reply, elem, new_state}
-            _from, [] -> {:reply, :empty, []}
-          end,
-          server
-        )
+        FunServer.sync(server, fn
+          _from, [elem | new_state] -> {:reply, elem, new_state}
+          _from, [] -> {:reply, :empty, []}
+        end)
       end
     end
 

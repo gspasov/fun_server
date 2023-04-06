@@ -97,6 +97,9 @@ defmodule FunServer do
 
   @type async_handler :: mfa() | async_func_handler()
 
+  # defguard is_server({pid, node}) when is_atom(pid) and is_atom(node)
+  defguard is_server(server) when is_tuple(server) or is_atom(server) or is_pid(server)
+
   @doc false
   defmacro __using__(opts) do
     quote do
@@ -149,7 +152,7 @@ defmodule FunServer do
 
   _For more information please refer to `GenServer.start/3`_
   """
-  @spec start(module :: atom(), init_handler(), options :: GenServer.options()) ::
+  @spec start(module(), init_handler(), GenServer.options()) ::
           {:ok, pid()} | {:error, any()} | :ignore
   def start(module, init_handler, options \\ [])
 
@@ -166,7 +169,7 @@ defmodule FunServer do
 
   _For more information please refer to `GenServer.start_link/3`_
   """
-  @spec start_link(module :: atom(), init_handler(), options :: GenServer.options()) ::
+  @spec start_link(module(), init_handler(), GenServer.options()) ::
           {:ok, pid()} | {:error, any()} | :ignore
   def start_link(module, init_handler, options \\ []) do
     GenServer.start_link(module, init_handler, options)
@@ -177,7 +180,7 @@ defmodule FunServer do
 
   _For more information please refer to `GenServer.stop/3`_
   """
-  @spec stop(server :: GenServer.server(), reason :: term(), timeout :: timeout()) :: :ok
+  @spec stop(GenServer.server(), reason :: term(), timeout()) :: :ok
   def stop(server, reason \\ :normal, timeout \\ :infinity) do
     GenServer.stop(server, reason, timeout)
   end
@@ -226,18 +229,16 @@ defmodule FunServer do
 
   _For additional information please refer to `GenServer.call/3`_
   """
-  @spec sync(
-          handler :: sync_handler(),
-          server :: GenServer.server(),
-          timeout :: timeout()
-        ) :: term()
-  def sync(handler, server, timeout \\ 5_000)
+  @spec sync(GenServer.server(), sync_handler(), timeout()) :: term()
+  def sync(server, handler, timeout \\ 5_000)
 
-  def sync({m, f, a} = handler, server, timeout) when is_atom(m) and is_atom(f) and is_list(a) do
+  def sync(server, {m, f, a} = handler, timeout)
+      when is_atom(m) and is_atom(f) and is_list(a) and is_server(server) and is_integer(timeout) do
     GenServer.call(server, handler, timeout)
   end
 
-  def sync(handler, server, timeout) when is_function(handler) do
+  def sync(server, handler, timeout)
+      when is_function(handler) and is_server(server) and is_integer(timeout) do
     GenServer.call(server, handler, timeout)
   end
 
@@ -249,12 +250,13 @@ defmodule FunServer do
 
   _For additional information please refer to `GenServer.cast/2`_
   """
-  @spec async(handler :: async_handler(), server :: GenServer.server()) :: term()
-  def async({m, f, a} = handler, server) when is_atom(m) and is_atom(f) and is_list(a) do
+  @spec async(GenServer.server(), async_handler()) :: term()
+  def async(server, {m, f, a} = handler)
+      when is_atom(m) and is_atom(f) and is_list(a) and is_server(server) do
     GenServer.cast(server, handler)
   end
 
-  def async(handler, server) when is_function(handler) do
+  def async(server, handler) when is_function(handler) and is_server(server) do
     GenServer.cast(server, handler)
   end
 end
