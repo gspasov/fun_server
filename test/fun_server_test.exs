@@ -20,7 +20,7 @@ defmodule FunServerTest do
       end
 
       def start_link(initial_state) do
-        FunServer.start_link(__MODULE__, fn -> {:ok, initial_state} end)
+        FunServer.start_link(__MODULE__, [name: __MODULE__], fn -> {:ok, initial_state} end)
       end
 
       def push(server, elem) do
@@ -51,6 +51,30 @@ defmodule FunServerTest do
         FunServer.sync(server, fn
           _from, [elem | new_state] -> {:reply, elem, new_state}
           _from, [] -> {:reply, :empty, []}
+        end)
+      end
+
+      def slow_pop_timeout(server) do
+        FunServer.sync(server, fn
+          _from, [elem | new_state] ->
+            :timer.sleep(6_000)
+            {:reply, elem, new_state}
+
+          _from, [] ->
+            :timer.sleep(6_000)
+            {:reply, :empty, []}
+        end)
+      end
+
+      def slow_pop_succeeds(server, timeout) do
+        FunServer.sync(server, timeout, fn
+          _from, [elem | new_state] ->
+            :timer.sleep(6_000)
+            {:reply, elem, new_state}
+
+          _from, [] ->
+            :timer.sleep(6_000)
+            {:reply, :empty, []}
         end)
       end
     end
@@ -108,6 +132,22 @@ defmodule FunServerTest do
   test "can call `FunServer.sync/3` using mfa approach", %{module: module, server: server} do
     result = apply(module, :push_mfa_sync, [server, 1])
     assert result == [1]
+  end
+
+  test "slow sync call will timeout after 5_000", %{module: module, server: server} do
+    assert match?(
+             {:timeout, {GenServer, :call, _}},
+             catch_exit(apply(module, :slow_pop_timeout, [server]))
+           ),
+           "expected call to match on :timeout exit from GenServer"
+  end
+
+  test "slow sync call succeed by passing additional timeout value", %{
+    module: module,
+    server: server
+  } do
+    result = apply(module, :slow_pop_succeeds, [server, 10_000])
+    assert result == :empty
   end
 
   test "can call `FunServer.async/2` using mfa approach", %{module: module, server: server} do
